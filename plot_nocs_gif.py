@@ -97,7 +97,7 @@ def update(frame):
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-mesh_path = "meshes/obj_000001.ply"
+mesh_path = "models/ape_nocs.ply"
 frames = 60  # Number of frames for the animation
 
 # Create the animation

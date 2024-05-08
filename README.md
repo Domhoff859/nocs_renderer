@@ -1,5 +1,7 @@
 # NOCS Renderer
 
+![](doc/nocs_animation.gif)
+
 ## NOCS Cube around a Mesh Object - simple live renderer
 `python plot_nocs.py`
 
