@@ -17,7 +17,6 @@ import os
 import random
 import gc
 import sys
-import imageio
 
 def get_surface_normal_by_depth(depth, fx=572.4114 , fy=573.57043):
     """
@@ -41,28 +40,6 @@ def get_surface_normal_by_depth(depth, fx=572.4114 , fy=573.57043):
     # set default normal to [0, 0, 1]
     normal_unit[~np.isfinite(normal_unit).all(2)] = [0, 0, 1]
     return normal_unit
-
-def calc_normal_image(depth_map):
-    rows, cols = depth_map.shape
-
-    x, y = np.meshgrid(np.arange(cols), np.arange(rows))
-    x = x.astype(np.float32)
-    y = y.astype(np.float32)
-
-    # Calculate the partial derivatives of depth with respect to x and y
-    dx = cv2.Sobel(depth_map, cv2.CV_32F, 1, 0)
-    dy = cv2.Sobel(depth_map, cv2.CV_32F, 0, 1)
-
-    # Compute the normal vector for each pixel
-    normal = np.dstack((-dx, -dy, np.ones((rows, cols))))
-    norm = np.sqrt(np.sum(normal**2, axis=2, keepdims=True))
-    normal = np.divide(normal, norm, out=np.zeros_like(normal), where=norm != 0)
-
-    # Map the normal vectors to the [0, 255] range and convert to uint8
-    normal = (normal + 1) * 127.5
-    normal = normal.clip(0, 255).astype(np.uint8)
-
-    return normal
 
 def convert_to_nocs(mesh):
 
@@ -98,16 +75,6 @@ def convert_to_nocs(mesh):
     new_mesh = trimesh.Trimesh(vertices=mesh.vertices,
                                faces=mesh.faces,
                                vertex_colors=colors)
-    return new_mesh
-
-def random_color_mesh(mesh):
-    vis = mesh.visual.to_color()
-    colors = np.random.uniform(size=(mesh.vertices.shape))
-
-    new_mesh = trimesh.Trimesh(vertices=mesh.vertices,
-                               faces=mesh.faces,
-                               vertex_colors=vis.vertex_colors)
-
     return new_mesh
 
 def calc_cam_poses(points):
@@ -159,19 +126,18 @@ def center_crop(image, crop_size):
     return image[top:bottom, left:right]
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print("Usage: python plot_nocs_pyrender.py <obj_id> <shapenet_dir> <output_dir>")
-        sys.exit(1)
-
-    obj_id = sys.argv[1]
-    shapenet_dir = sys.argv[2]
-    output_dir = sys.argv[3]
+    obj_id = "03797390"
+    shapenet_dir = "/hdd2/obj_models/val"
+    output_dir = "/hdd2/nocs_category_paper_images"
 
     print("output_dir: ", output_dir)
     print("obj_id: ", obj_id)
     print()
 
-    os.environ['PYOPENGL_PLATFORM'] = 'egl'
+    #os.environ['PYOPENGL_PLATFORM'] = 'egl'
+
+    # Render RGB and depth images from each camera pose
+    #output_dir = "/hdd2/nocs_category_level_v2/"
     os.makedirs(output_dir, exist_ok=True)
 
     objs = sorted(os.listdir(shapenet_dir + "/" + obj_id))
@@ -244,12 +210,8 @@ if __name__ == "__main__":
             #depth_path = os.path.join(depth_output_dir, f"{idx:06d}_{i:06d}.png")
             mask_path = os.path.join(mask_output_dir, f"{idx:06d}_{i:06d}.png")
             normal_path = os.path.join(normal_output_dir, f"{idx:06d}_{i:06d}.png")
-
             normals = get_surface_normal_by_depth(depth, fx=572.4114 , fy=573.57043)
             normals = np.uint8((normals + 1) / 2 * 255)
-
-            print("depth np.min: ", np.min(depth))
-            print("depth np.max: ", np.max(depth))
 
             nm = {node: (i + 1) for i, node in enumerate(scene.mesh_nodes)}
             mask = r.render(scene, RenderFlags.SEG, nm)[0]
@@ -266,25 +228,6 @@ if __name__ == "__main__":
 
         del scene
         gc.collect()
-
-        # mesh_rgb_pyrender = pyrender.Mesh.from_trimesh(mesh, smooth = False)
-        # scene = pyrender.Scene(ambient_light=np.array([1,1,1, 1.0]), bg_color=(1,1,1))
-        # scene.add_node(n_camera)
-        # scene.add(mesh_rgb_pyrender)
-
-        # for i, camera_pose in enumerate(camera_poses):
-
-        #     scene.set_pose(n_camera, pose=camera_pose)
-
-        #     # Render the scene
-        #     normals, depth = r_normals.render(scene)
-
-        #     normal_path = os.path.join(normal_output_dir, f"{idx:06d}_{i:06d}.png")
-
-        #     cv2.imwrite(normal_path, normals[:, :, ::-1])
-
-        # del scene
-        # gc.collect()
 
         scene = pyrender.Scene(ambient_light=np.array([1,1,1, 1.0]), bg_color=(1,1,1))
         scene.add_node(n_camera)
@@ -309,3 +252,5 @@ if __name__ == "__main__":
 
         del scene
         gc.collect()
+
+        break

@@ -17,63 +17,29 @@ import os
 import random
 import gc
 import sys
-import open3d
-import copy
 
-NOISE_BOUND = 0.05
-N_OUTLIERS = 1700
-OUTLIER_TRANSLATION_LB = 5
-OUTLIER_TRANSLATION_UB = 10
+def get_surface_normal_by_depth(depth, fx=572.4114 , fy=573.57043):
+    """
+    depth: (h, w) of float, the unit of depth is meter
+    K: (3, 3) of float, the depth camere's intrinsic
+    """
+    # K = [[1, 0], [0, 1]] if K is None else K
+    # fx, fy = K[0][0], K[1][1]
 
-def normal_from_pointcloud(depth_image, path):
+    dz_dv, dz_du = np.gradient(depth)  # u, v mean the pixel coordinate in the image
+    # u*depth = fx*x + cx --> du/dx = fx / depth
+    du_dx = fx / depth  # x is xyz of camera coordinate
+    dv_dy = fy / depth
 
-    # Assuming a default FOV and image size
-    fov = np.pi / 3.0  # Field of view
-    width, height = depth_image.shape[1], depth_image.shape[0]
-    fx = width / (2 * np.tan(fov / 2))
-    fy = height / (2 * np.tan(fov / 2))
-    cx, cy = width / 2, height / 2
-
-    intrinsics = open3d.camera.PinholeCameraIntrinsic(width, height, fx, fy, cx, cy)
-    # Create Open3D point cloud from depth image
-    depth_image = open3d.geometry.Image(depth_image)
-    pcd = open3d.geometry.PointCloud.create_from_depth_image(depth_image, intrinsics)
-
-    # Estimate normals
-    pcd.estimate_normals()
-    open3d.visualization.draw_geometries([pcd], point_show_normal=True)
-    pcd = pcd.normalize_normals()
-
-    vis = open3d.visualization.Visualizer()
-    vis.create_window(width=256, height=256)
-    vis.add_geometry(pcd)
-    vis.update_geometry(pcd)
-    vis.poll_events()
-    vis.update_renderer()
-    vis.capture_screen_image(path)
-    #vis.destroy_window()
-
-def calc_normal_image(depth_map):
-    rows, cols = depth_map.shape
-
-    x, y = np.meshgrid(np.arange(cols), np.arange(rows))
-    x = x.astype(np.float32)
-    y = y.astype(np.float32)
-
-    # Calculate the partial derivatives of depth with respect to x and y
-    dx = cv2.Sobel(depth_map, cv2.CV_32F, 1, 0)
-    dy = cv2.Sobel(depth_map, cv2.CV_32F, 0, 1)
-
-    # Compute the normal vector for each pixel
-    normal = np.dstack((-dx, -dy, np.ones((rows, cols))))
-    norm = np.sqrt(np.sum(normal**2, axis=2, keepdims=True))
-    normal = np.divide(normal, norm, out=np.zeros_like(normal), where=norm != 0)
-
-    # Map the normal vectors to the [0, 255] range and convert to uint8
-    normal = (normal + 1) * 127.5
-    normal = normal.clip(0, 255).astype(np.uint8)
-
-    return normal
+    dz_dx = dz_du * du_dx
+    dz_dy = dz_dv * dv_dy
+    # cross-product (1,0,dz_dx)X(0,1,dz_dy) = (-dz_dx, -dz_dy, 1)
+    normal_cross = np.dstack((-dz_dx, -dz_dy, np.ones_like(depth)))
+    # normalize to unit vector
+    normal_unit = normal_cross / np.linalg.norm(normal_cross, axis=2, keepdims=True)
+    # set default normal to [0, 0, 1]
+    normal_unit[~np.isfinite(normal_unit).all(2)] = [0, 0, 1]
+    return normal_unit
 
 def convert_to_nocs(mesh):
 
@@ -109,16 +75,6 @@ def convert_to_nocs(mesh):
     new_mesh = trimesh.Trimesh(vertices=mesh.vertices,
                                faces=mesh.faces,
                                vertex_colors=colors)
-    return new_mesh
-
-def random_color_mesh(mesh):
-    vis = mesh.visual.to_color()
-    colors = np.random.uniform(size=(mesh.vertices.shape))
-
-    new_mesh = trimesh.Trimesh(vertices=mesh.vertices,
-                               faces=mesh.faces,
-                               vertex_colors=vis.vertex_colors)
-
     return new_mesh
 
 def calc_cam_poses(points):
@@ -161,19 +117,28 @@ def scale_mesh(mesh):
 
     return mesh
 
+def center_crop(image, crop_size):
+    h, w = image.shape[:2]
+    left = (w - crop_size) // 2
+    top = (h - crop_size) // 2
+    right = left + crop_size
+    bottom = top + crop_size
+    return image[top:bottom, left:right]
+
 if __name__ == "__main__":
-    obj_id = "03797390"
-    shapenet_dir = "/hdd2/obj_models/val"
-    output_dir = "/hdd2/nocs_category_paper_images"
+    if len(sys.argv) != 4:
+        print("Usage: python plot_nocs_pyrender.py <obj_id> <shapenet_dir> <output_dir>")
+        sys.exit(1)
+
+    obj_id = sys.argv[1]
+    shapenet_dir = sys.argv[2]
+    output_dir = sys.argv[3]
 
     print("output_dir: ", output_dir)
     print("obj_id: ", obj_id)
     print()
 
-    #os.environ['PYOPENGL_PLATFORM'] = 'egl'
-
-    # Render RGB and depth images from each camera pose
-    #output_dir = "/hdd2/nocs_category_level_v2/"
+    os.environ['PYOPENGL_PLATFORM'] = 'egl'
     os.makedirs(output_dir, exist_ok=True)
 
     objs = sorted(os.listdir(shapenet_dir + "/" + obj_id))
@@ -184,18 +149,16 @@ if __name__ == "__main__":
     os.makedirs(rgb_output_dir, exist_ok=True)
     nocs_output_dir = output_dir + "/nocs"
     os.makedirs(nocs_output_dir, exist_ok=True)
-    depth_output_dir = output_dir + "/depth"
-    os.makedirs(depth_output_dir, exist_ok=True)
+    # depth_output_dir = output_dir + "/depth"
+    # os.makedirs(depth_output_dir, exist_ok=True)
     normal_output_dir = output_dir + "/normals"
     os.makedirs(normal_output_dir, exist_ok=True)
     mask_output_dir = output_dir + "/masks"
     os.makedirs(mask_output_dir, exist_ok=True)
 
-    r = OffscreenRenderer(viewport_width=256, viewport_height=256)
-    r_normals = OffscreenRenderer(viewport_width=256, viewport_height=256)
+    r = OffscreenRenderer(viewport_width=640, viewport_height=480)
+    r_normals = OffscreenRenderer(viewport_width=640, viewport_height=480)
     r_normals._renderer._program_cache = ShaderProgramCache(shader_dir="shaders")
-
-    depth_scale = 1000
 
     for idx, obj in tqdm(enumerate(objs), total=len(objs), desc="Processing Objects"):
         mesh_path = shapenet_dir + "/" + obj_id + "/" + obj + "/model.obj"
@@ -215,10 +178,11 @@ if __name__ == "__main__":
         spot_l3 = SpotLight(color=np.ones(3), intensity=intensity_3,
                         innerConeAngle=np.pi/16, outerConeAngle=np.pi/6)
 
-        cam = PerspectiveCamera(yfov=(np.pi / 3.0))
+        #cam = PerspectiveCamera(yfov=(np.pi / 3.0))
+        cam = IntrinsicsCamera(fx=572.4114 , fy=573.57043 , cx=325.2611, cy=242.04899)
         n_camera = pyrender.Node(camera=cam, matrix=np.eye(4))
 
-        scene = pyrender.Scene(ambient_light=np.array([0.6, 0.6, 0.6, 1.0]))
+        scene = pyrender.Scene(ambient_light=np.array([0.1, 0.1, 0.1, 1.0]), bg_color=(1,1,1))
 
         scene.add_node(n_camera)
         scene.add(mesh_rgb_pyrender)
@@ -228,7 +192,7 @@ if __name__ == "__main__":
         spot_l3_node = scene.add(spot_l3, pose=np.eye(4))
 
         # Generate camera poses using icosphere sampling
-        points = trimesh.creation.icosphere(subdivisions=2, radius=np.max(mesh.bounding_box.extents) * 1.5).vertices
+        points = trimesh.creation.icosphere(subdivisions=2, radius=np.max(mesh.bounding_box.extents) * 3).vertices
         camera_poses = calc_cam_poses(points)
 
         for i, camera_pose in enumerate(camera_poses):
@@ -241,50 +205,32 @@ if __name__ == "__main__":
             scene.set_pose(spot_l2_node, pose=camera_poses[idx2])
             scene.set_pose(spot_l3_node, pose=camera_poses[idx3])
 
-            scene.set_pose(n_camera, pose=camera_pose)
-
             # Render the scene
             color, depth = r.render(scene)
             rgb_path = os.path.join(rgb_output_dir, f"{idx:06d}_{i:06d}.png")
-            depth_path = os.path.join(depth_output_dir, f"{idx:06d}_{i:06d}.png")
+            #depth_path = os.path.join(depth_output_dir, f"{idx:06d}_{i:06d}.png")
             mask_path = os.path.join(mask_output_dir, f"{idx:06d}_{i:06d}.png")
             normal_path = os.path.join(normal_output_dir, f"{idx:06d}_{i:06d}.png")
-            normals = normal_from_pointcloud(depth, normal_path)
+            normals = get_surface_normal_by_depth(depth, fx=572.4114 , fy=573.57043)
+            normals = np.uint8((normals + 1) / 2 * 255)
 
             nm = {node: (i + 1) for i, node in enumerate(scene.mesh_nodes)}
             mask = r.render(scene, RenderFlags.SEG, nm)[0]
-            #color = color * mask
-            #color[mask != 1] = 255
             mask = (mask * 255).astype(np.uint8)
 
-            #cv2.imwrite(normal_path, normals[:, :, ::-1])
-            cv2.imwrite(rgb_path, color[:, :, ::-1])
-            cv2.imwrite(depth_path, depth)
-            cv2.imwrite(mask_path, mask)
+            color_cropped = center_crop(color, 256)
+            normals_cropped = center_crop(normals, 256)
+            mask_cropped = center_crop(mask, 256)
+
+            cv2.imwrite(rgb_path, color_cropped[:, :, ::-1])
+            #cv2.imwrite(depth_path, depth)
+            cv2.imwrite(mask_path, mask_cropped)
+            cv2.imwrite(normal_path, normals_cropped[:, :, ::-1])
 
         del scene
         gc.collect()
 
-        # mesh_rgb_pyrender = pyrender.Mesh.from_trimesh(mesh, smooth = False)
-        # scene = pyrender.Scene(ambient_light=np.array([1,1,1, 1.0]))
-        # scene.add_node(n_camera)
-        # scene.add(mesh_rgb_pyrender)
-
-        # for i, camera_pose in enumerate(camera_poses):
-
-        #     scene.set_pose(n_camera, pose=camera_pose)
-
-        #     # Render the scene
-        #     normals, depth = r_normals.render(scene)
-
-        #     normal_path = os.path.join(normal_output_dir, f"{idx:06d}_{i:06d}.png")
-
-        #     cv2.imwrite(normal_path, normals[:, :, ::-1])
-
-        # del scene
-        # gc.collect()
-
-        scene = pyrender.Scene(ambient_light=np.array([1,1,1, 1.0]))
+        scene = pyrender.Scene(ambient_light=np.array([1,1,1, 1.0]), bg_color=(1,1,1))
         scene.add_node(n_camera)
         mesh_nocs = scale_mesh(mesh)
         mesh_nocs = convert_to_nocs(mesh_nocs)
@@ -292,7 +238,7 @@ if __name__ == "__main__":
         mesh_nocs_pyrender = pyrender.Mesh.from_trimesh(mesh_nocs)
         scene.add(mesh_nocs_pyrender)
 
-        points = trimesh.creation.icosphere(subdivisions=2, radius=np.max(mesh_nocs.bounding_box.extents) * 1.5).vertices
+        points = trimesh.creation.icosphere(subdivisions=2, radius=np.max(mesh_nocs.bounding_box.extents) * 3).vertices
         camera_poses = calc_cam_poses(points)
 
         for i, camera_pose in enumerate(camera_poses):
@@ -300,11 +246,10 @@ if __name__ == "__main__":
             scene.set_pose(n_camera, pose=camera_pose)
 
             color, _ = r.render(scene)
+            color_cropped = center_crop(color, 256)
 
             nocs_path = os.path.join(nocs_output_dir, f"{idx:06d}_{i:06d}.png")
-            cv2.imwrite(nocs_path, color[:, :, ::-1])
+            cv2.imwrite(nocs_path, color_cropped[:, :, ::-1])
 
         del scene
         gc.collect()
-
-        break
