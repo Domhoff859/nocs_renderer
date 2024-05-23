@@ -11,44 +11,6 @@ def interpolate_color(start_color, end_color, t):
     """
     return [start_color[i] + t * (end_color[i] - start_color[i]) for i in range(3)]
 
-def convert_to_nocs(mesh):
-
-    # x_ct = np.mean(mesh.vertices[:, 0])
-    # y_ct = np.mean(mesh.vertices[:, 1])
-    # z_ct = np.mean(mesh.vertices[:, 2])
-
-    x_ct = 0
-    y_ct = 0
-    z_ct = 0
-
-    x_abs = np.max(np.abs(mesh.vertices[:, 0]))
-    y_abs = np.max(np.abs(mesh.vertices[:, 1]))
-    z_abs = np.max(np.abs(mesh.vertices[:, 2]))
-
-    n_vert = len(mesh.vertices)
-    colors = []
-
-    for i in range(n_vert):
-        # Normalize x, y, z values to the range [-1, 1]
-        r = (mesh.vertices[i, 0])
-        r = (r + 1) / 2  # Map to [0, 1]
-
-        g = (mesh.vertices[i, 1])
-        g = (g + 1) / 2  # Map to [0, 1]
-        
-        b = (mesh.vertices[i, 2])
-        b = (b + 1) / 2  # Map to [0, 1]
-
-        # Convert to color values (0-255) and append to the colors array
-        colors.append([int(r * 255), int(g * 255), int(b * 255), 255])
-
-    new_mesh = trimesh.Trimesh(vertices=mesh.vertices,
-                               faces=mesh.faces,
-                               vertex_colors=colors)
-
-    #new_mesh.export("new_mesh.obj")
-    return new_mesh
-
 def plot_cube(ax):
     # Define vertices of the cube
     vertices = np.array([[0, 0, 0],
@@ -85,6 +47,43 @@ def plot_cube(ax):
         for i in range(num_points - 1):
             ax.plot3D(*zip(edge_points[i], edge_points[i+1]), color=edge_colors[i])
 
+def convert_to_nocs(mesh):
+
+    # x_ct = np.mean(mesh.vertices[:, 0])
+    # y_ct = np.mean(mesh.vertices[:, 1])
+    # z_ct = np.mean(mesh.vertices[:, 2])
+
+    x_ct = 0
+    y_ct = 0
+    z_ct = 0
+
+    x_abs = np.max(np.abs(mesh.vertices[:, 0]))
+    y_abs = np.max(np.abs(mesh.vertices[:, 1]))
+    z_abs = np.max(np.abs(mesh.vertices[:, 2]))
+
+    n_vert = len(mesh.vertices)
+    colors = []
+
+    for i in range(n_vert):
+        # Normalize x, y, z values to the range [-1, 1]
+        r = (mesh.vertices[i, 0])
+        r = (r + 1) / 2  # Map to [0, 1]
+
+        g = (mesh.vertices[i, 1])
+        g = (g + 1) / 2  # Map to [0, 1]
+        
+        b = (mesh.vertices[i, 2])
+        b = (b + 1) / 2  # Map to [0, 1]
+
+        # Convert to color values (0-255) and append to the colors array
+        colors.append([int(r * 255), int(g * 255), int(b * 255), 255])
+
+    new_mesh = trimesh.Trimesh(vertices=mesh.vertices,
+                               faces=mesh.faces,
+                               vertex_colors=colors)
+
+    return new_mesh
+
 def scale_mesh(mesh):
     # Get the bounding box of the mesh
     bbox_min, bbox_max = mesh.bounds
@@ -94,26 +93,27 @@ def scale_mesh(mesh):
     scaling_factor = 1.0 / current_diagonal_length
     mesh.apply_scale(scaling_factor)
 
-
     return mesh
-    
+
 def plot_mesh(ax, mesh_path):
 
     # Load the mesh
     mesh = trimesh.load(mesh_path)
+    mesh = scale_mesh(mesh)
+    mesh = convert_to_nocs(mesh)
 
     print("Faces array shape:", mesh.faces.shape)
     print("Faces array dtype:", mesh.faces.dtype)
 
-    max_extent = np.max(mesh.vertices, axis=0)
-    min_extent = np.min(mesh.vertices, axis=0)
-    scale_factor = 1 / np.max(max_extent - min_extent)
-    translate_vector = -min_extent * scale_factor
+    # max_extent = np.max(mesh.vertices, axis=0)
+    # min_extent = np.min(mesh.vertices, axis=0)
+    # scale_factor = 1 / np.max(max_extent - min_extent)
+    # translate_vector = -min_extent * scale_factor
 
-    # Normalize the mesh to fit within a 1x1x1 cube
-    mesh.apply_transform(trimesh.transformations.scale_and_translate(scale=scale_factor, translate=translate_vector))
+    # # Normalize the mesh to fit within a 1x1x1 cube
+    # mesh.apply_transform(trimesh.transformations.scale_and_translate(scale=scale_factor, translate=translate_vector))
 
-    target_center = np.array([0.5, 0.5, 0.38])
+    target_center = np.array([0.5, 0.5, 0.5])
     current_center = np.mean(mesh.vertices, axis=0)
     print(current_center)
     center_translation = target_center - current_center
@@ -121,14 +121,12 @@ def plot_mesh(ax, mesh_path):
     # Apply the translation to move the center of the mesh
     mesh.apply_translation(center_translation)
 
-    # Print max and min values of transformed vertices
-    print("Max vertex:", np.max(mesh.vertices, axis=0))
-    print("Min vertex:", np.min(mesh.vertices, axis=0))
+    # # Print max and min values of transformed vertices
+    # print("Max vertex:", np.max(mesh.vertices, axis=0))
+    # print("Min vertex:", np.min(mesh.vertices, axis=0))
 
     # Extract vertex colors from the PLY file
     face_colors = mesh.visual.face_colors / 255.0
-
-    colourRGB = np.array((255.0/255.0, 54.0/255.0, 57/255.0, 1.0))
 
     mpl_mesh = Poly3DCollection(mesh.vertices[mesh.faces], alpha=1.0)
     mpl_mesh.set_facecolor(face_colors)
@@ -169,6 +167,7 @@ ax = fig.add_subplot(111, projection='3d')
 
 # Plot the cube
 mesh_path = "meshes/obj_000005.ply" 
+mesh_path = "/hdd2/real_camera_dataset/obj_models/real_test/camera_canon_len_norm.obj"
 plot_mesh(ax, mesh_path)
 plot_cube(ax)
 
