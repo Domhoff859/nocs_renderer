@@ -174,7 +174,7 @@ if __name__ == "__main__":
     r = OffscreenRenderer(viewport_width=640, viewport_height=480)
 
     # Camera intrinsics
-    for idx, obj in tqdm(enumerate(objs), total=len(objs), desc="Processing Objects"):
+    for idx, obj in enumerate(objs):
 
         # check for symmetry information
         model_info = model_info['{}'.format(obj)]
@@ -211,7 +211,7 @@ if __name__ == "__main__":
         mesh_nocs_pyrender = pyrender.Mesh.from_trimesh(mesh_nocs)
 
         # iterate through all RGB files
-        for img_id in range(len(rgb_files)):
+        for img_id in tqdm(range(len(rgb_files)), total=len(rgb_files), desc="Processing Images"):
             gt_img = gts[img_id]
 
             fx = scene_cam[img_id]["cam_K"][0][0]
@@ -293,7 +293,7 @@ if __name__ == "__main__":
                 else:
                     visibility_percentage_bbox = 0.0
 
-                print("Visibility percentage within bounding box: ", visibility_percentage_bbox)
+                # print("Visibility percentage within bounding box: ", visibility_percentage_bbox)
 
                 rgb_data = crop_and_resize(img, bbox_gt)
                 xyz_data = crop_and_resize(img_r, bbox_gt)
@@ -311,7 +311,7 @@ if __name__ == "__main__":
                 if (
                     rgb_data.shape[0] > 20 and rgb_data.shape[1] > 20
                     and xyz_data.shape[0] > 20 and xyz_data.shape[1] > 20
-                    and visibility_percentage_bbox > visibility_threshold:
+                    and visibility_percentage_bbox > visibility_threshold
                 ):
                     # Check if cropped_mask is a binary mask and convert to np.uint8
                     # if len(np.unique(cropped_mask)) <= 2:
@@ -329,8 +329,6 @@ if __name__ == "__main__":
                     cv2.imwrite(rgb_sub_fn, rgb_data[:, :, ::-1])
                     # cv2.imwrite(mask_sub_fn, cropped_mask)
                     # cv2.imwrite(mask_visib_sub_fn, cropped_mask_visib)
-
-                    print("write: ", rgb_sub_fn)
 
                 del scene
 
