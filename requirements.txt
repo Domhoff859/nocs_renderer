@@ -1,0 +1,8 @@
+numpy==1.24.3
+trimesh==3.23.0
+opencv-python==4.8.1.78
+opencv-python-headless==4.6.0.66
+tqdm==4.66.2
+pypng==0.0.19
+open3d==0.17.0
+open3d-python==0.3.0.0

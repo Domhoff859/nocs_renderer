@@ -3,18 +3,20 @@
 #  https://stackoverflow.com/questions/53350391/surface-normal-calculation-from-depth-map-in-python
 #  https://github.com/mmatl/pyrender/blob/master/examples/example.py
 
+import os
+import sys
+
 import numpy as np
 import trimesh
-import os
 import cv2
 from tqdm import tqdm
-import pyrender_local.pyrender as pyrender
-from pyrender_local.pyrender import IntrinsicsCamera, SpotLight, OffscreenRenderer
-import sys
 import png
 import json
-import bop_io
 import open3d as o3d
+
+import bop_io
+import pyrender_local.pyrender as pyrender
+from pyrender_local.pyrender import IntrinsicsCamera, SpotLight, OffscreenRenderer
 
 ROOT_DIR = os.path.abspath(".")
 sys.path.append(ROOT_DIR) 
