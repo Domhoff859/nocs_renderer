@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Set directory containing object folders
-shapenet_dir="/hdd2/real_camera_dataset/obj_models/train"
+shapenet_dir="/hdd2/real_camera_dataset/obj_models/train_selected"
 
 # Set output directory
-output_dir="/hdd2/nocs_category_level"
+output_dir="/hdd2/nocs_category_level_v2"
 
 num_threads=8
 

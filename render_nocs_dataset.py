@@ -21,6 +21,39 @@ from mpl_toolkits.mplot3d import Axes3D
 import png
 from PIL import Image
 import json
+import open3d as o3d
+
+def plot_pcd(numpy_array):
+    # Create a PointCloud object
+    print(numpy_array.shape)
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(np.array(numpy_array))
+
+    o3d.visualization.draw_geometries([pcd])
+
+# def plot_pcd(numpy_array):
+#     # Reshape the array to (N, 3) where N is the total number of points (960*1280)
+#     points = numpy_array.reshape(-1, 3)
+    
+#     # Create a PointCloud object
+#     pcd = o3d.geometry.PointCloud()
+#     pcd.points = o3d.utility.Vector3dVector(points)
+    
+#     # Create a visualization with a coordinate frame for better context
+#     vis = o3d.visualization.Visualizer()
+#     vis.create_window()
+#     vis.add_geometry(pcd)
+    
+#     # Add a coordinate frame for reference
+#     vis.add_geometry(o3d.geometry.TriangleMesh.create_coordinate_frame())
+    
+#     # Add a grid
+#     bbox = pcd.get_axis_aligned_bounding_box()
+#     grid = o3d.geometry.LineSet.create_from_axis_aligned_bounding_box(bbox)
+#     vis.add_geometry(grid)
+    
+#     # Run the visualizer
+#     vis.run()
 
 def plot_pcd_images(xyz_estimated):
     """
@@ -143,6 +176,7 @@ def scale_mesh(mesh):
     """
     Scale the mesh to fit within a unit cube.
     """
+
     max_dimension = max(mesh.bounds[1] - mesh.bounds[0])
     scaling_factor = 1.0 / max_dimension
 
@@ -157,14 +191,14 @@ def save_symmetries(symmetries, path):
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage: python render_nocs_dataset_v2.py <obj_id> <shapenet_dir> <output_dir>")
+        print("Usage: python render_nocs_dataset.py <obj_id> <shapenet_dir> <output_dir>")
         sys.exit(1)
 
     # Read command line arguments
     obj_id, shapenet_dir, output_dir = sys.argv[1], sys.argv[2], sys.argv[3]
     
-    crop_size  = 128
-    cam_distance_factor = 8
+    crop_size = 512
+    cam_distance_factor = 4
 
     # Create output directory structure
     os.makedirs(output_dir, exist_ok=True)
@@ -185,17 +219,17 @@ if __name__ == "__main__":
     os.makedirs(symmetries_output_dir, exist_ok=True)
 
     # Camera intrinsics
-    fx, fy = 572.4114, 573.57043
-    cx, cy = 325.2611, 242.04899
+    fx, fy = 572.4114 * 2, 573.57043 * 2
+    cx, cy = 325.2611 * 2, 242.04899 * 2
 
-    r = OffscreenRenderer(viewport_width=640, viewport_height=480)
+    r = OffscreenRenderer(viewport_width=1280, viewport_height=960)
     camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
 
     # Camera intrinsics
     for idx, obj in tqdm(enumerate(objs), total=len(objs), desc="Processing Objects"):
         mesh_path = shapenet_dir + "/" + obj_id + "/" + obj + "/model.obj"
         mesh = trimesh.load(mesh_path, force='mesh')
-        scale_mesh(mesh)
+        mesh = scale_mesh(mesh)
 
         #####################################################
         #
@@ -227,7 +261,7 @@ if __name__ == "__main__":
         points = trimesh.creation.icosphere(subdivisions=2, radius=np.max(mesh.bounding_box.extents) * cam_distance_factor).vertices
         camera_poses = calc_cam_poses(points)
 
-        camera_poses = [camera_poses[0]]
+        #camera_poses = [camera_poses[0]]
         for i, camera_pose in enumerate(camera_poses):
             light_pose_indices = np.random.randint(len(camera_poses), size=3)    
             scene.set_pose(n_camera, pose=camera_pose)
@@ -237,6 +271,7 @@ if __name__ == "__main__":
 
             color, depth = r.render(scene)
             rgb_path = os.path.join(rgb_output_dir, f"{idx:06d}_{i:06d}.png")
+            # rgb_path = os.path.join(rgb_output_dir, obj + ".png")
             depth_path = os.path.join(depth_output_dir, f"{idx:06d}_{i:06d}.png")
             mask_path = os.path.join(mask_output_dir, f"{idx:06d}_{i:06d}.png")
 
@@ -260,7 +295,9 @@ if __name__ == "__main__":
 
         camera_poses = calc_cam_poses(points)
 
-        camera_poses = [camera_poses[0]]
+        print(camera_poses)
+        
+        #camera_poses = [camera_poses[0]]
         for i, camera_pose in enumerate(camera_poses):
 
             scene.set_pose(n_camera, pose=camera_pose)
@@ -270,6 +307,8 @@ if __name__ == "__main__":
 
             nocs_path = os.path.join(nocs_output_dir, f"{idx:06d}_{i:06d}.png")
             cv2.imwrite(nocs_path, color_cropped[:, :, ::-1])
+
+            # plot_pcd_images(color)
 
         del scene
         gc.collect()
