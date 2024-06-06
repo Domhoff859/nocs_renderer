@@ -230,6 +230,18 @@ if __name__ == "__main__":
         mesh_path = shapenet_dir + "/" + obj_id + "/" + obj + "/model.obj"
         mesh = trimesh.load(mesh_path, force='mesh')
         mesh = scale_mesh(mesh)
+        
+        #####################################################
+        #
+        #   your script for symmetry calculation goes here
+        #
+        ######################################################
+
+        # obj_symmetries = symmetry_calculation(mesh)
+        # symmetries_path = os.path.join(symmetries_output_dir, f"{idx:06d}.json")
+        # save_symmetries(obj_symmetries, symmetries_path)
+
+        ######################################################
 
         # Convert mesh to pyrender format
         mesh_rgb_pyrender = pyrender.Mesh.from_trimesh(mesh)
@@ -287,11 +299,17 @@ if __name__ == "__main__":
 
             scene.set_pose(n_camera, pose=camera_pose)
 
-            color, _ = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
+            po_image, _ = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
+
+            # aus diesem renderer kommt das NOCS image = po image
+            # dieses bitte verwenden um DASH und STAR zu berechnen
+
             color_cropped = center_crop(color, crop_size)
 
             nocs_path = os.path.join(nocs_output_dir, f"{idx:06d}_{i:06d}.png")
             cv2.imwrite(nocs_path, color_cropped[:, :, ::-1])
+            # STAR und DASH cv2.imwrites hinzufügen
+            
 
             # plot_pcd_images(color)
 

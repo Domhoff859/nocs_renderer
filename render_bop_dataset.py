@@ -18,6 +18,8 @@ import bop_io
 import pyrender_local.pyrender as pyrender
 from pyrender_local.pyrender import IntrinsicsCamera, SpotLight, OffscreenRenderer
 
+# from StarDash.src.star import StarRepresentation
+
 ROOT_DIR = os.path.abspath(".")
 sys.path.append(ROOT_DIR) 
 sys.path.append("./bop_toolkit")
@@ -167,6 +169,7 @@ if __name__ == "__main__":
         depth_files, mask_files, mask_visib_files, gts, cam_param_global, scene_cam =\
              bop_io.get_dataset(bop_directory, dataset, incl_param=True)
     rgb_fn = rgb_files[0]
+    print()
 
     # Create output directory structure
     output_dir = bop_directory + "/" + dataset + "/xyz_data"
@@ -175,20 +178,11 @@ if __name__ == "__main__":
     # initialize pyrender renderer
     r = OffscreenRenderer(viewport_width=640, viewport_height=480)
 
+    # StarDash library hier einbetten
+    # star = StarRepresentation(model_info)
+
     # Camera intrinsics
     for idx, obj in enumerate(objs):
-
-        # check for symmetry information
-        model_info = model_info['{}'.format(obj)]
-        keys = model_info.keys()
-        sym_continous = [0,0,0,0,0,0]
-        if('symmetries_discrete' in keys):
-            print(obj,"is symmetric_discrete")
-        if('symmetries_continuous' in keys):
-            print(obj,"is symmetric_continous")
-            sym_continous[:3] = model_info['symmetries_continuous'][0]['axis']
-            sym_continous[3:]= model_info['symmetries_continuous'][0]['offset']
-            print("Symmetric axis(x,y,z):", sym_continous[:3])
 
         # create output folders
         obj_output_dir = output_dir + "/" + str(obj)
@@ -204,7 +198,7 @@ if __name__ == "__main__":
         os.makedirs(dash_output_dir, exist_ok=True)
 
         # load mesh, millimeters to meters and NOCS mesh calculation
-        mesh_path = bop_dir + "/models/obj_{:06d}.ply".format(int(obj))
+        mesh_path = model_plys[idx]
         mesh = trimesh.load(mesh_path, force='mesh')
         # millimeters to meters
         mesh.vertices = mesh.vertices / 1000
@@ -268,7 +262,15 @@ if __name__ == "__main__":
                 img_r, depth_rend = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
                 img = inout.load_im(rgb_fn)
 
-                depth_img = inout.load_depth(depth_fn)
+                ################
+                #
+                # put the STAR and DASH map calculation here
+                # 
+                ###############
+
+                # print(img_r.shape)
+                # valid_star = star.calculate(object_id=str(obj), po_image=img_r)
+                # print(valid_star.shape)
 
                 vu_valid = np.where(depth_rend > 0)
 
