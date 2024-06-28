@@ -63,13 +63,14 @@ plyfile==1.0.3
 prompt_toolkit==3.0.47
 ptyprocess==0.7.0
 pure-eval==0.2.2
-pyglet==1.4.0a1
+pyglet==2.0.15
 Pygments==2.18.0
-PyOpenGL==3.1.7
+PyOpenGL==3.1.0
 PyOpenGL-accelerate==3.1.7
 pyparsing==3.1.2
 pypng==0.0.19
 pyquaternion==0.9.9
+pyrender==0.1.45
 python-dateutil==2.9.0.post0
 pytz==2024.1
 PyYAML==6.0.1
