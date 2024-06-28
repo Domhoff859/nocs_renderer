@@ -17,8 +17,7 @@ import open3d as o3d
 import bop_io
 import pyrender_local.pyrender as pyrender
 from pyrender_local.pyrender import IntrinsicsCamera, SpotLight, OffscreenRenderer
-
-# from StarDash.src.star import StarRepresentation
+from star_dash import StarRepresentation, DashRepresentation
 
 ROOT_DIR = os.path.abspath(".")
 sys.path.append(ROOT_DIR) 
@@ -153,6 +152,41 @@ def pyrender_cam_pose():
 
     return camera_pose
 
+def load_star_dash_model_info(model_info: dict) -> dict:
+    """
+    Refactor the model info as needed by the Star and Dash Representation
+
+    Args:
+        model_info (dict): BOP model info
+
+    Returns:
+        dict: StarDash model info
+    """
+    star_dash_model_info = {}
+    for object_id in model_info:
+        object_info = {}
+        
+        key = str(object_id)
+        assert(key in model_info)
+
+        # Extract the relevant information for the object
+        object_info["diameter"] = model_info[key]["diameter"]
+        object_info["mins"] = np.array([model_info[key]["min_x"],model_info[key]["min_y"],model_info[key]["min_z"]])
+        object_info["maxs"] = np.array([model_info[key]["size_x"],model_info[key]["size_y"],model_info[key]["size_z"]]) +  object_info["mins"]
+
+        # Check if discrete symmetries are present
+        if "symmetries_discrete" in model_info[key]:
+            object_info["symmetries_discrete"] = [np.array(_).reshape((4,4)) for _ in model_info[key]["symmetries_discrete"]]
+        else:
+            object_info["symmetries_discrete"] = []
+
+        # Check if continuous symmetries are present
+        object_info["symmetries_continuous"] = "symmetries_continuous" in model_info[key]
+            
+        star_dash_model_info[object_id] = object_info
+        
+    return star_dash_model_info
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: python render_bop_dataset.py <bop_directory> <dataset>")
@@ -170,6 +204,8 @@ if __name__ == "__main__":
              bop_io.get_dataset(bop_directory, dataset, incl_param=True)
     rgb_fn = rgb_files[0]
     print()
+    
+    
 
     # Create output directory structure
     output_dir = bop_directory + "/" + dataset + "/xyz_data"
@@ -179,7 +215,10 @@ if __name__ == "__main__":
     r = OffscreenRenderer(viewport_width=640, viewport_height=480)
 
     # StarDash library hier einbetten
-    # star = StarRepresentation(model_info)
+    star_dash_model_info = load_star_dash_model_info(model_info=model_info)
+    
+    star = StarRepresentation(model_info=star_dash_model_info)
+    dash = DashRepresentation(model_info=star_dash_model_info)
 
     # Camera intrinsics
     for idx, obj in enumerate(objs):
@@ -267,10 +306,14 @@ if __name__ == "__main__":
                 # put the STAR and DASH map calculation here
                 # 
                 ###############
-
-                # print(img_r.shape)
-                # valid_star = star.calculate(object_id=str(obj), po_image=img_r)
-                # print(valid_star.shape)
+                
+                # =================================================================================
+                valid_star = star.calculate(po_image=img_r[np.newaxis, :, :, :], object_id=str(obj))
+                valid_dash = dash.calculate(R=np.array(gt['cam_R_m2c'])[np.newaxis, :, :], po_image=img_r[np.newaxis, :, :, :], object_id=str(obj))
+                
+                valid_star = valid_star[0, :, : ,:]
+                valid_dash = valid_dash[0, :, :, :]      
+                # =================================================================================
 
                 vu_valid = np.where(depth_rend > 0)
 
@@ -301,6 +344,8 @@ if __name__ == "__main__":
 
                 rgb_data = crop_and_resize(img, bbox_gt)
                 xyz_data = crop_and_resize(img_r, bbox_gt)
+                star_data = crop_and_resize(valid_star, bbox_gt)
+                dash_data = crop_and_resize(valid_dash, bbox_gt)
 
                 # cropped_mask = mask[y_min:y_max, x_min:x_max]
                 # cropped_mask_visib = mask_visib[y_min:y_max, x_min:x_max]
@@ -325,12 +370,16 @@ if __name__ == "__main__":
 
                     xyz_sub_fn = os.path.join(nocs_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
                     rgb_sub_fn = os.path.join(rgb_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
+                    dash_sub_fn = os.path.join(dash_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.npy")
+                    star_sub_fn = os.path.join(star_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.npy")
 
                     # mask_sub_fn = os.path.join(mask_sub_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
                     # mask_visib_sub_fn = os.path.join(mask_visib_sub_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
-
+                    
                     cv2.imwrite(xyz_sub_fn, xyz_data[:, :, ::-1])
                     cv2.imwrite(rgb_sub_fn, rgb_data[:, :, ::-1])
+                    np.save(dash_sub_fn, dash_data)
+                    np.save(star_sub_fn, star_data)
                     # cv2.imwrite(mask_sub_fn, cropped_mask)
                     # cv2.imwrite(mask_visib_sub_fn, cropped_mask_visib)
 

@@ -1,3 +1,9 @@
 [submodule "pyrender_local"]
 	path = pyrender_local
 	url = https://github.com/hoenigpeter/pyrender.git
+[submodule "star_dash"]
+	path = star_dash
+	url = https://github.com/Domhoff859/StarDash.git
+[submodule "bop_toolkit"]
+	path = bop_toolkit
+	url = https://github.com/thodan/bop_toolkit.git
