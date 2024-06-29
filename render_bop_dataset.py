@@ -97,8 +97,8 @@ def crop_and_resize(img, bbox, target_size=128):
     center_y = (bbox[0] + bbox[2]) // 2
     
     # Enlarge the bounding box
-    # enlarged_size = int(max(bbox_width, bbox_height) * 1.5)
-    enlarged_size = 128
+    enlarged_size = int(max(bbox_width, bbox_height) * 1.5)
+    # enlarged_size = 128
     
     crop_xmin = max(center_x - enlarged_size // 2, 0)
     crop_xmax = min(center_x + enlarged_size // 2, img.shape[1])
@@ -126,11 +126,11 @@ def crop_and_resize(img, bbox, target_size=128):
             cropped_img = cropped_img.astype(np.uint8)
         cropped_img = cv2.resize(cropped_img, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
         
-    # elif cropped_img.shape[0] < target_size:
-    #     scale_factor = target_size / float(cropped_img.shape[0])
-    #     if cropped_img.dtype != np.uint8:
-    #         cropped_img = cropped_img.astype(np.uint8)
-    #     cropped_img = cv2.resize(cropped_img, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
+    elif cropped_img.shape[0] < target_size:
+        scale_factor = target_size / float(cropped_img.shape[0])
+        if cropped_img.dtype != np.uint8:
+            cropped_img = cropped_img.astype(np.uint8)
+        cropped_img = cv2.resize(cropped_img, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
     
     return cropped_img
 

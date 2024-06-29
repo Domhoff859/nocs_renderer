@@ -197,8 +197,8 @@ if __name__ == "__main__":
     # Read command line arguments
     obj_id, shapenet_dir, output_dir = sys.argv[1], sys.argv[2], sys.argv[3]
     
-    crop_size = 512
-    cam_distance_factor = 4
+    crop_size = 128
+    cam_distance_factor = 10
 
     # Create output directory structure
     os.makedirs(output_dir, exist_ok=True)
@@ -215,8 +215,10 @@ if __name__ == "__main__":
     os.makedirs(nocs_output_dir, exist_ok=True)
     mask_output_dir = output_dir + "/masks"
     os.makedirs(mask_output_dir, exist_ok=True)
-    symmetries_output_dir = output_dir + "/symmetries"
-    os.makedirs(symmetries_output_dir, exist_ok=True)
+    star_output_dir = output_dir + "/star"
+    os.makedirs(star_output_dir, exist_ok=True)
+    dash_output_dir = output_dir + "/dash"
+    os.makedirs(dash_output_dir, exist_ok=True)
 
     # Camera intrinsics
     fx, fy = 572.4114 * 2, 573.57043 * 2
@@ -230,18 +232,6 @@ if __name__ == "__main__":
         mesh_path = shapenet_dir + "/" + obj_id + "/" + obj + "/model.obj"
         mesh = trimesh.load(mesh_path, force='mesh')
         mesh = scale_mesh(mesh)
-        
-        #####################################################
-        #
-        #   your script for symmetry calculation goes here
-        #
-        ######################################################
-
-        # obj_symmetries = symmetry_calculation(mesh)
-        # symmetries_path = os.path.join(symmetries_output_dir, f"{idx:06d}.json")
-        # save_symmetries(obj_symmetries, symmetries_path)
-
-        ######################################################
 
         # Convert mesh to pyrender format
         mesh_rgb_pyrender = pyrender.Mesh.from_trimesh(mesh)
@@ -268,19 +258,25 @@ if __name__ == "__main__":
 
             for j, spot_light_node in enumerate(spot_light_nodes):
                 scene.set_pose(spot_light_node, pose=camera_poses[light_pose_indices[j]])
-
-            color, depth = r.render(scene)
+            
+            # Define save paths
             rgb_path = os.path.join(rgb_output_dir, f"{idx:06d}_{i:06d}.png")
             depth_path = os.path.join(depth_output_dir, f"{idx:06d}_{i:06d}.png")
             mask_path = os.path.join(mask_output_dir, f"{idx:06d}_{i:06d}.png")
+            
+            # Render RGB and depth images
+            color, depth = r.render(scene)
 
+            # Render segmentation mask
             mask = r.render(scene, pyrender.RenderFlags.SEG, {node: (i + 1) for i, node in enumerate(scene.mesh_nodes)})[0]
             mask = (mask * 255).astype(np.uint8)
 
+            # Crop images to given size
             color_cropped = center_crop(color, crop_size)
             mask_cropped = center_crop(mask, crop_size)
             depth_cropped = center_crop(depth, crop_size)
 
+            # Save images
             cv2.imwrite(rgb_path, color_cropped[:, :, ::-1])
             save_depth(depth_path, depth_cropped)
             cv2.imwrite(mask_path, mask_cropped)
@@ -299,15 +295,16 @@ if __name__ == "__main__":
 
             scene.set_pose(n_camera, pose=camera_pose)
 
+            # Render NOCS images
             po_image, _ = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
 
             # aus diesem renderer kommt das NOCS image = po image
             # dieses bitte verwenden um DASH und STAR zu berechnen
 
-            color_cropped = center_crop(color, crop_size)
+            po_image_cropped = center_crop(po_image, crop_size)
 
             nocs_path = os.path.join(nocs_output_dir, f"{idx:06d}_{i:06d}.png")
-            cv2.imwrite(nocs_path, color_cropped[:, :, ::-1])
+            cv2.imwrite(nocs_path, po_image_cropped[:, :, ::-1])
             # STAR und DASH cv2.imwrites hinzufügen
             
 
