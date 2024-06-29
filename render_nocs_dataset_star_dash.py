@@ -22,6 +22,7 @@ import png
 from PIL import Image
 import json
 import open3d as o3d
+from star_dash import StarRepresentation, DashRepresentation
 
 def plot_pcd(numpy_array):
     # Create a PointCloud object
@@ -188,6 +189,34 @@ def save_symmetries(symmetries, path):
 
     with open(path, 'w') as json_file:
         json.dump(list_of_lists, json_file, indent=4)
+        
+def load_star_dash_model_info(nocs_mesh: trimesh.Trimesh, model_info: dict) -> dict:
+    """
+    Create the model info from the mesh as needed by the Star and Dash Representation
+
+    Args:
+        nocs_mesh (trimesh.Trimesh): NOCS mesh
+
+    Returns:
+        dict: StarDash model info
+    """
+    star_dash_model_info = {}
+    
+    # Calculate the bounding box of the mesh
+    star_dash_model_info['mins'] = np.array(np.min(nocs_mesh.vertices, axis=0))
+    star_dash_model_info['maxs'] = np.array(np.max(nocs_mesh.vertices, axis=0))
+    
+    # Calculate the diameter of the mesh as the largest distance between any two points
+    star_dash_model_info['diameter'] = np.max(np.linalg.norm(nocs_mesh.vertices - np.mean(nocs_mesh.vertices, axis=0), axis=1))
+    
+    if "symmetries_discrete" in model_info:
+        star_dash_model_info["symmetries_discrete"] = [np.array(_).reshape((4,4)) for _ in model_info["symmetries_discrete"]]
+    else:
+        star_dash_model_info["symmetries_discrete"] = []
+        
+    star_dash_model_info["symmetries_continuous"] = "symmetries_continuous" in model_info
+
+    return star_dash_model_info
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
@@ -251,7 +280,6 @@ if __name__ == "__main__":
         points = trimesh.creation.icosphere(subdivisions=2, radius=np.max(mesh.bounding_box.extents) * cam_distance_factor).vertices
         camera_poses = calc_cam_poses(points)
 
-        #camera_poses = [camera_poses[0]]
         for i, camera_pose in enumerate(camera_poses):
             light_pose_indices = np.random.randint(len(camera_poses), size=3)    
             scene.set_pose(n_camera, pose=camera_pose)
@@ -289,26 +317,46 @@ if __name__ == "__main__":
         scene.add(pyrender.Mesh.from_trimesh(mesh_nocs))
 
         camera_poses = calc_cam_poses(points)
+        
+        # Prepare Star and Dash Representation
+        # Load model info for symmetries from json file
+        with open(shapenet_dir + '/models_info.json') as f:
+            model_info = json.load(f)
+        
+        # Create the model info from the mesh as needed by the Star and Dash Representation
+        star_dash_model_info = load_star_dash_model_info(nocs_mesh=mesh_nocs, model_info=model_info[obj_id])
+    
+        # Create Star and Dash Representation
+        star = StarRepresentation(model_info=star_dash_model_info)
+        dash = DashRepresentation(model_info=star_dash_model_info)
 
-        #camera_poses = [camera_poses[0]]
         for i, camera_pose in enumerate(camera_poses):
 
             scene.set_pose(n_camera, pose=camera_pose)
 
             # Render NOCS images
             po_image, _ = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
-
-            # aus diesem renderer kommt das NOCS image = po image
-            # dieses bitte verwenden um DASH und STAR zu berechnen
-
+            
+            # Calculate the cam_R_m2c matrix for the current camera pose
+            cam_R_m2c = camera_pose[:3, :3]
+            
+            # Calculate Star and Dash Representation
+            valid_star = star.calculate(po_image=po_image[np.newaxis, :, :, :])
+            valid_dash = dash.calculate(po_image=po_image[np.newaxis, :, :, :], R=cam_R_m2c[np.newaxis, :, :])
+            valid_star = valid_star[0, :, : ,:]
+            valid_dash = valid_dash[0, :, :, :]
+            
             po_image_cropped = center_crop(po_image, crop_size)
-
-            nocs_path = os.path.join(nocs_output_dir, f"{idx:06d}_{i:06d}.png")
-            cv2.imwrite(nocs_path, po_image_cropped[:, :, ::-1])
-            # STAR und DASH cv2.imwrites hinzufügen
+            star_cropped = center_crop(valid_star, crop_size)
+            dash_cropped = center_crop(valid_dash, crop_size)
             
 
-            # plot_pcd_images(color)
+            nocs_path = os.path.join(nocs_output_dir, f"{idx:06d}_{i:06d}.png")
+            star_path = os.path.join(star_output_dir, f"{idx:06d}_{i:06d}.npy")
+            dash_path = os.path.join(dash_output_dir, f"{idx:06d}_{i:06d}.npy")
+            cv2.imwrite(nocs_path, po_image_cropped[:, :, ::-1])
+            np.save(star_path, star_cropped)
+            np.save(dash_path, dash_cropped)
 
         del scene
         gc.collect()
