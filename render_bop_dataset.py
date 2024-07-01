@@ -230,7 +230,17 @@ if __name__ == "__main__":
 
     # Camera intrinsics
     for idx, obj in enumerate(objs):
-
+        # """
+        # Only train objects:
+        # inf : 1, 4 
+        # 1 Fold: 21, 22
+        # 2 Fold: 5, 9,  
+        # 4 Fold: 27
+        # """
+        # if obj not in [1, 4, 5, 9, 21, 22, 27]:
+        #     continue
+        # print(f"Processing object {obj}...")
+        
         # create output folders
         obj_output_dir = output_dir + "/" + str(obj)
         os.makedirs(obj_output_dir, exist_ok=True)
