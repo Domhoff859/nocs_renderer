@@ -178,7 +178,7 @@ def scale_mesh(mesh):
     Scale the mesh to fit within a unit cube.
     """
 
-    max_dimension = max(mesh.bounds[1] - mesh.bounds[0])
+    max_dimension = np.linalg.norm(mesh.bounds[1] - mesh.bounds[0])
     scaling_factor = 1.0 / max_dimension
 
     mesh.apply_scale(scaling_factor)
