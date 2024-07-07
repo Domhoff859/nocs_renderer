@@ -120,17 +120,12 @@ def crop_and_resize(img, bbox, target_size=128):
         cropped_img[y_offset:y_offset + (crop_ymax - crop_ymin), x_offset:x_offset + (crop_xmax - crop_xmin)] = img[crop_ymin:crop_ymax, crop_xmin:crop_xmax]
     
     # Resize if necessary
-    if cropped_img.shape[0] > target_size:
+    if cropped_img.shape[0] != target_size:
         scale_factor = target_size / float(cropped_img.shape[0])
         if cropped_img.dtype != np.uint8:
             cropped_img = cropped_img.astype(np.uint8)
         cropped_img = cv2.resize(cropped_img, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
         
-    elif cropped_img.shape[0] < target_size:
-        scale_factor = target_size / float(cropped_img.shape[0])
-        if cropped_img.dtype != np.uint8:
-            cropped_img = cropped_img.astype(np.uint8)
-        cropped_img = cv2.resize(cropped_img, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
     
     return cropped_img
 
@@ -237,9 +232,11 @@ if __name__ == "__main__":
         # 2 Fold: 5, 9,  
         # 4 Fold: 27
         # """
-        # if obj not in [1, 4, 5, 9, 21, 22, 27]:
-        #     continue
-        # print(f"Processing object {obj}...")
+        if obj not in [1, 4, 5, 9, 21, 22, 27]:
+            continue
+        
+        
+        print(f"Processing object {obj}...")
         
         # create output folders
         obj_output_dir = output_dir + "/" + str(obj)
@@ -253,7 +250,13 @@ if __name__ == "__main__":
         os.makedirs(star_output_dir, exist_ok=True)
         dash_output_dir = obj_output_dir + "/dash"
         os.makedirs(dash_output_dir, exist_ok=True)
-
+        mask_output_dir = obj_output_dir + "/mask"
+        os.makedirs(mask_output_dir, exist_ok=True)
+        mask_visib_output_dir = obj_output_dir + "/mask_visib"
+        os.makedirs(mask_visib_output_dir, exist_ok=True)
+        cam_R_m2c_output_dir = obj_output_dir + "/cam_R_m2c"
+        os.makedirs(cam_R_m2c_output_dir, exist_ok=True)
+        
         # load mesh, millimeters to meters and NOCS mesh calculation
         mesh_path = model_plys[idx]
         mesh = trimesh.load(mesh_path, force='mesh')
@@ -318,7 +321,7 @@ if __name__ == "__main__":
 
                 img_r, depth_rend = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
                 img = inout.load_im(rgb_fn)
-
+                
                 ################
                 #
                 # put the STAR and DASH map calculation here
@@ -329,8 +332,15 @@ if __name__ == "__main__":
                 valid_star = star.calculate(po_image=img_r[np.newaxis, :, :, :], object_id=str(obj))
                 valid_dash = dash.calculate(R=np.array(gt['cam_R_m2c'])[np.newaxis, :, :], po_image=img_r[np.newaxis, :, :, :], object_id=str(obj))
                 
+                
+                # Normalize the STAR and DASH maps
                 valid_star = valid_star[0, :, : ,:]
-                valid_dash = valid_dash[0, :, :, :]      
+                valid_star = np.where(valid_star != 0, valid_star / np.sqrt(2) / 2 + 127.5, 0)
+                valid_star = np.array(valid_star, dtype=np.uint8)
+                
+                valid_dash = valid_dash[0, :, :, :]
+                valid_dash = np.where(valid_dash != 0, valid_dash / 2 + 127.5, 0)
+                valid_dash = np.array(valid_dash, dtype=np.uint8)
                 # =================================================================================
 
                 vu_valid = np.where(depth_rend > 0)
@@ -364,9 +374,6 @@ if __name__ == "__main__":
                 xyz_data = crop_and_resize(img_r, bbox_gt)
                 star_data = crop_and_resize(valid_star, bbox_gt)
                 dash_data = crop_and_resize(valid_dash, bbox_gt)
-                
-                # cropped_mask = mask[y_min:y_max, x_min:x_max]
-                # cropped_mask_visib = mask_visib[y_min:y_max, x_min:x_max]
 
                 cropped_mask = crop_and_resize(mask, bbox_gt)
                 cropped_mask_visib = crop_and_resize(mask_visib, bbox_gt)
@@ -381,26 +388,29 @@ if __name__ == "__main__":
                     and visibility_percentage_bbox > visibility_threshold
                 ):
                     # Check if cropped_mask is a binary mask and convert to np.uint8
-                    # if len(np.unique(cropped_mask)) <= 2:
-                    #     cropped_mask = cropped_mask * 255
-                    # if len(np.unique(cropped_mask_visib)) <= 2:
-                    #     cropped_mask_visib = cropped_mask_visib * 255
+                    if len(np.unique(cropped_mask)) <= 2:
+                        cropped_mask = cropped_mask * 255
+                    if len(np.unique(cropped_mask_visib)) <= 2:
+                        cropped_mask_visib = cropped_mask_visib * 255
 
                     xyz_sub_fn = os.path.join(nocs_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
                     rgb_sub_fn = os.path.join(rgb_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
-                    dash_sub_fn = os.path.join(dash_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.npy")
-                    star_sub_fn = os.path.join(star_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.npy")
+                    dash_sub_fn = os.path.join(dash_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
+                    star_sub_fn = os.path.join(star_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
+                    mask_sub_fn = os.path.join(mask_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
+                    mask_visib_sub_fn = os.path.join(mask_visib_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
+                    cam_R_m2c_sub_fn = os.path.join(cam_R_m2c_output_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.npy")
 
                     # mask_sub_fn = os.path.join(mask_sub_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
                     # mask_visib_sub_fn = os.path.join(mask_visib_sub_dir, f"{scene_string}_{img_string}_{gt_instance:06d}.png")
                     
                     cv2.imwrite(xyz_sub_fn, xyz_data[:, :, ::-1])
                     cv2.imwrite(rgb_sub_fn, rgb_data[:, :, ::-1])
-                    np.save(dash_sub_fn, dash_data)
-                    np.save(star_sub_fn, star_data)
-                    # cv2.imwrite(mask_sub_fn, cropped_mask)
-                    # cv2.imwrite(mask_visib_sub_fn, cropped_mask_visib)
+                    cv2.imwrite(dash_sub_fn, dash_data)
+                    cv2.imwrite(star_sub_fn, star_data)
+                    cv2.imwrite(mask_sub_fn, cropped_mask)
+                    cv2.imwrite(mask_visib_sub_fn, cropped_mask_visib)
+                    np.save(cam_R_m2c_sub_fn, np.array(gt['cam_R_m2c']).reshape(3,3))
 
                 del scene
-
 
