@@ -248,6 +248,8 @@ if __name__ == "__main__":
     os.makedirs(star_output_dir, exist_ok=True)
     dash_output_dir = output_dir + "/dash"
     os.makedirs(dash_output_dir, exist_ok=True)
+    cam_R_m2c_output_dir = output_dir + "/cam_R_m2c"
+    os.makedirs(cam_R_m2c_output_dir, exist_ok=True)
 
     # Camera intrinsics
     fx, fy = 572.4114 * 2, 573.57043 * 2
@@ -318,6 +320,7 @@ if __name__ == "__main__":
 
         camera_poses = calc_cam_poses(points)
         
+        # =================================================================================
         # Prepare Star and Dash Representation
         # Load model info for symmetries from json file
         with open(shapenet_dir + '/models_info.json') as f:
@@ -329,7 +332,8 @@ if __name__ == "__main__":
         # Create Star and Dash Representation
         star = StarRepresentation(model_info=star_dash_model_info)
         dash = DashRepresentation(model_info=star_dash_model_info)
-
+        # =================================================================================
+        
         for i, camera_pose in enumerate(camera_poses):
 
             scene.set_pose(n_camera, pose=camera_pose)
@@ -340,11 +344,20 @@ if __name__ == "__main__":
             # Calculate the cam_R_m2c matrix for the current camera pose
             cam_R_m2c = camera_pose[:3, :3]
             
+            # =================================================================================
             # Calculate Star and Dash Representation
             valid_star = star.calculate(po_image=po_image[np.newaxis, :, :, :])
             valid_dash = dash.calculate(po_image=po_image[np.newaxis, :, :, :], R=cam_R_m2c[np.newaxis, :, :])
+            
+            # Normalize the output
             valid_star = valid_star[0, :, : ,:]
+            valid_star = np.where(valid_star != 0, valid_star / np.sqrt(2) / 2 + 127.5, 0)
+            valid_star = np.array(valid_star, dtype=np.uint8)
+            
             valid_dash = valid_dash[0, :, :, :]
+            valid_dash = np.where(valid_dash != 0, valid_dash / 2 + 127.5, 0)
+            valid_dash = np.array(valid_dash, dtype=np.uint8)
+            # =================================================================================
             
             po_image_cropped = center_crop(po_image, crop_size)
             star_cropped = center_crop(valid_star, crop_size)
@@ -352,11 +365,14 @@ if __name__ == "__main__":
             
 
             nocs_path = os.path.join(nocs_output_dir, f"{idx:06d}_{i:06d}.png")
-            star_path = os.path.join(star_output_dir, f"{idx:06d}_{i:06d}.npy")
-            dash_path = os.path.join(dash_output_dir, f"{idx:06d}_{i:06d}.npy")
+            star_path = os.path.join(star_output_dir, f"{idx:06d}_{i:06d}.png")
+            dash_path = os.path.join(dash_output_dir, f"{idx:06d}_{i:06d}.png")
+            cam_R_m2c_path = os.path.join(cam_R_m2c_output_dir, f"{idx:06d}_{i:06d}.npy")
+            
             cv2.imwrite(nocs_path, po_image_cropped[:, :, ::-1])
-            np.save(star_path, star_cropped)
-            np.save(dash_path, dash_cropped)
+            cv2.imwrite(star_path, star_cropped)
+            cv2.imwrite(dash_path, dash_cropped)
+            np.save(cam_R_m2c_path, cam_R_m2c)
 
         del scene
         gc.collect()
