@@ -242,7 +242,7 @@ if __name__ == "__main__":
     os.makedirs(depth_output_dir, exist_ok=True)
     nocs_output_dir = output_dir + "/nocs"
     os.makedirs(nocs_output_dir, exist_ok=True)
-    mask_output_dir = output_dir + "/masks"
+    mask_output_dir = output_dir + "/mask"
     os.makedirs(mask_output_dir, exist_ok=True)
     star_output_dir = output_dir + "/star"
     os.makedirs(star_output_dir, exist_ok=True)
