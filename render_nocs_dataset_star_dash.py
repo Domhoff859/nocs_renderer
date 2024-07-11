@@ -339,27 +339,28 @@ if __name__ == "__main__":
             scene.set_pose(n_camera, pose=camera_pose)
 
             # Render NOCS images
-            po_image, _ = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
+            img_r, _ = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
             
             # Calculate the cam_R_m2c matrix for the current camera pose
             cam_R_m2c = camera_pose[:3, :3]
             
             # =================================================================================
+            po_image = np.array(img_r, dtype=np.float32) - 127.5
             # Calculate Star and Dash Representation
             valid_star = star.calculate(po_image=po_image[np.newaxis, :, :, :])
             valid_dash = dash.calculate(po_image=po_image[np.newaxis, :, :, :], R=cam_R_m2c[np.newaxis, :, :])
             
             # Normalize the output
             valid_star = valid_star[0, :, : ,:]
-            valid_star = np.where(valid_star != 0, valid_star / np.sqrt(2) / 2 + 127.5, 0)
+            valid_star = valid_star / np.sqrt(2) / 2 + 127.5
             valid_star = np.array(valid_star, dtype=np.uint8)
             
             valid_dash = valid_dash[0, :, :, :]
-            valid_dash = np.where(valid_dash != 0, valid_dash / 2 + 127.5, 0)
+            valid_dash = valid_dash / np.sqrt(2) / 2 + 127.5
             valid_dash = np.array(valid_dash, dtype=np.uint8)
             # =================================================================================
             
-            po_image_cropped = center_crop(po_image, crop_size)
+            img_r_cropped = center_crop(img_r, crop_size)
             star_cropped = center_crop(valid_star, crop_size)
             dash_cropped = center_crop(valid_dash, crop_size)
             
@@ -369,7 +370,7 @@ if __name__ == "__main__":
             dash_path = os.path.join(dash_output_dir, f"{idx:06d}_{i:06d}.png")
             cam_R_m2c_path = os.path.join(cam_R_m2c_output_dir, f"{idx:06d}_{i:06d}.npy")
             
-            cv2.imwrite(nocs_path, po_image_cropped[:, :, ::-1])
+            cv2.imwrite(nocs_path, img_r_cropped[:, :, ::-1])
             cv2.imwrite(star_path, star_cropped)
             cv2.imwrite(dash_path, dash_cropped)
             np.save(cam_R_m2c_path, cam_R_m2c)

@@ -329,17 +329,18 @@ if __name__ == "__main__":
                 ###############
                 
                 # =================================================================================
-                valid_star = star.calculate(po_image=img_r[np.newaxis, :, :, :], object_id=str(obj))
-                valid_dash = dash.calculate(R=np.array(gt['cam_R_m2c'])[np.newaxis, :, :], po_image=img_r[np.newaxis, :, :, :], object_id=str(obj))
+                po_image = np.array(img_r, dtype=np.float32) - 127.5
                 
+                valid_star = star.calculate(po_image=po_image[np.newaxis, :, :, :], object_id=str(obj))
+                valid_dash = dash.calculate(R=np.array(gt['cam_R_m2c'])[np.newaxis, :, :], po_image=po_image[np.newaxis, :, :, :], object_id=str(obj))
                 
                 # Normalize the STAR and DASH maps
                 valid_star = valid_star[0, :, : ,:]
-                valid_star = np.where(valid_star != 0, valid_star / np.sqrt(2) / 2 + 127.5, 0)
+                valid_star = valid_star / np.sqrt(2) / 2 + 127.5
                 valid_star = np.array(valid_star, dtype=np.uint8)
                 
                 valid_dash = valid_dash[0, :, :, :]
-                valid_dash = np.where(valid_dash != 0, valid_dash / 2 + 127.5, 0)
+                valid_dash = valid_dash / np.sqrt(2) / 2 + 127.5
                 valid_dash = np.array(valid_dash, dtype=np.uint8)
                 # =================================================================================
 
