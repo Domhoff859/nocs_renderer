@@ -344,8 +344,9 @@ if __name__ == "__main__":
             # Calculate the cam_R_m2c matrix for the current camera pose
             cam_R_m2c = camera_pose[:3, :3]
             
+            img_r_cropped = center_crop(img_r, crop_size)
             # =================================================================================
-            po_image = np.array(img_r, dtype=np.float32) - 127.5
+            po_image = np.array(img_r_cropped, dtype=np.float32) - 127.5
             # Calculate Star and Dash Representation
             valid_star = star.calculate(po_image=po_image[np.newaxis, :, :, :])
             valid_dash = dash.calculate(po_image=po_image[np.newaxis, :, :, :], R=cam_R_m2c[np.newaxis, :, :])
@@ -359,11 +360,6 @@ if __name__ == "__main__":
             valid_dash = valid_dash / np.sqrt(2) / 2 + 127.5
             valid_dash = np.array(valid_dash, dtype=np.uint8)
             # =================================================================================
-            
-            img_r_cropped = center_crop(img_r, crop_size)
-            star_cropped = center_crop(valid_star, crop_size)
-            dash_cropped = center_crop(valid_dash, crop_size)
-            
 
             nocs_path = os.path.join(nocs_output_dir, f"{idx:06d}_{i:06d}.png")
             star_path = os.path.join(star_output_dir, f"{idx:06d}_{i:06d}.png")
@@ -371,8 +367,8 @@ if __name__ == "__main__":
             cam_R_m2c_path = os.path.join(cam_R_m2c_output_dir, f"{idx:06d}_{i:06d}.npy")
             
             cv2.imwrite(nocs_path, img_r_cropped[:, :, ::-1])
-            cv2.imwrite(star_path, star_cropped)
-            cv2.imwrite(dash_path, dash_cropped)
+            cv2.imwrite(star_path, valid_star)
+            cv2.imwrite(dash_path, valid_dash)
             np.save(cam_R_m2c_path, cam_R_m2c)
 
         del scene

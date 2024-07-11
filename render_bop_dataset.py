@@ -321,28 +321,6 @@ if __name__ == "__main__":
 
                 img_r, depth_rend = r.render(scene, flags=pyrender.constants.RenderFlags.FLAT | pyrender.constants.RenderFlags.DISABLE_ANTI_ALIASING)
                 img = inout.load_im(rgb_fn)
-                
-                ################
-                #
-                # put the STAR and DASH map calculation here
-                # 
-                ###############
-                
-                # =================================================================================
-                po_image = np.array(img_r, dtype=np.float32) - 127.5
-                
-                valid_star = star.calculate(po_image=po_image[np.newaxis, :, :, :], object_id=str(obj))
-                valid_dash = dash.calculate(R=np.array(gt['cam_R_m2c'])[np.newaxis, :, :], po_image=po_image[np.newaxis, :, :, :], object_id=str(obj))
-                
-                # Normalize the STAR and DASH maps
-                valid_star = valid_star[0, :, : ,:]
-                valid_star = valid_star / np.sqrt(2) / 2 + 127.5
-                valid_star = np.array(valid_star, dtype=np.uint8)
-                
-                valid_dash = valid_dash[0, :, :, :]
-                valid_dash = valid_dash / np.sqrt(2) / 2 + 127.5
-                valid_dash = np.array(valid_dash, dtype=np.uint8)
-                # =================================================================================
 
                 vu_valid = np.where(depth_rend > 0)
 
@@ -373,9 +351,30 @@ if __name__ == "__main__":
                 
                 rgb_data = crop_and_resize(img, bbox_gt)
                 xyz_data = crop_and_resize(img_r, bbox_gt)
-                star_data = crop_and_resize(valid_star, bbox_gt)
-                dash_data = crop_and_resize(valid_dash, bbox_gt)
-
+                
+                ################
+                #
+                # put the STAR and DASH map calculation here
+                # 
+                ###############
+                
+                # =================================================================================
+                
+                po_image = np.array(xyz_data, dtype=np.float32) - 127.5
+                
+                valid_star = star.calculate(po_image=po_image[np.newaxis, :, :, :], object_id=str(obj))
+                valid_dash = dash.calculate(R=np.array(gt['cam_R_m2c'])[np.newaxis, :, :], po_image=po_image[np.newaxis, :, :, :], object_id=str(obj))
+                
+                # Normalize the STAR and DASH maps
+                valid_star = valid_star[0, :, : ,:]
+                valid_star = valid_star / np.sqrt(2) / 2 + 127.5
+                valid_star = np.array(valid_star, dtype=np.uint8)
+                
+                valid_dash = valid_dash[0, :, :, :]
+                valid_dash = valid_dash / np.sqrt(2) / 2 + 127.5
+                valid_dash = np.array(valid_dash, dtype=np.uint8)
+                # =================================================================================
+            
                 cropped_mask = crop_and_resize(mask, bbox_gt)
                 cropped_mask_visib = crop_and_resize(mask_visib, bbox_gt)
 
@@ -407,8 +406,8 @@ if __name__ == "__main__":
                     
                     cv2.imwrite(xyz_sub_fn, xyz_data[:, :, ::-1])
                     cv2.imwrite(rgb_sub_fn, rgb_data[:, :, ::-1])
-                    cv2.imwrite(dash_sub_fn, dash_data)
-                    cv2.imwrite(star_sub_fn, star_data)
+                    cv2.imwrite(dash_sub_fn, valid_dash)
+                    cv2.imwrite(star_sub_fn, valid_star)
                     cv2.imwrite(mask_sub_fn, cropped_mask)
                     cv2.imwrite(mask_visib_sub_fn, cropped_mask_visib)
                     np.save(cam_R_m2c_sub_fn, np.array(gt['cam_R_m2c']).reshape(3,3))
