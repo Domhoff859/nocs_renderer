@@ -353,11 +353,11 @@ if __name__ == "__main__":
             
             # Normalize the output
             valid_star = valid_star[0, :, : ,:]
-            valid_star = valid_star / np.sqrt(2) / 2 + 127.5
+            valid_star = valid_star if(len(star_dash_model_info['symmetries_discrete'])) else valid_star / np.sqrt(2) / 2 + 127.5 
             valid_star = np.array(valid_star, dtype=np.uint8)
             
             valid_dash = valid_dash[0, :, :, :]
-            valid_dash = valid_dash / np.sqrt(2) / 2 + 127.5
+            valid_dash = valid_dash if(len(star_dash_model_info['symmetries_discrete'])) else valid_dash / np.sqrt(2) / 2 + 127.5
             valid_dash = np.array(valid_dash, dtype=np.uint8)
             # =================================================================================
 
