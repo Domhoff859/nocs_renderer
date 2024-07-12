@@ -235,7 +235,6 @@ if __name__ == "__main__":
         if obj not in [1, 4, 5, 9, 21, 22, 27]:
             continue
         
-        
         print(f"Processing object {obj}...")
         
         # create output folders
@@ -368,14 +367,22 @@ if __name__ == "__main__":
                 
                 # Normalize the STAR and DASH maps
                 valid_star = valid_star[0, :, : ,:]
-                valid_star = valid_star if(len(star_dash_model_info[str(obj)]['symmetries_discrete'])) else valid_star / np.sqrt(2) / 2 + 127.5 
+                if(len(star_dash_model_info[str(obj)]['symmetries_discrete'])==0 and not star_dash_model_info[str(obj)]['symmetries_continuous']):
+                    valid_star = valid_star + 127.5
+                else:
+                    valid_star = valid_star / np.sqrt(2) / 2 + 127.5
+                
                 valid_star = np.array(valid_star, dtype=np.uint8)
                 
                 valid_dash = valid_dash[0, :, :, :]
-                valid_dash = valid_dash if(len(star_dash_model_info[str(obj)]['symmetries_discrete'])) else valid_dash / np.sqrt(2) / 2 + 127.5
+                if(len(star_dash_model_info[str(obj)]['symmetries_discrete'])==0 and not star_dash_model_info[str(obj)]['symmetries_continuous']):
+                    valid_dash = valid_dash + 127.5
+                else:
+                    valid_dash = valid_dash / np.sqrt(2) / 2 + 127.5 
+                    
                 valid_dash = np.array(valid_dash, dtype=np.uint8)
                 # =================================================================================
-            
+                
                 cropped_mask = crop_and_resize(mask, bbox_gt)
                 cropped_mask_visib = crop_and_resize(mask_visib, bbox_gt)
 
