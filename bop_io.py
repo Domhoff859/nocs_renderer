@@ -106,7 +106,7 @@ def get_dataset(bop_dir, dataset, train=True, incl_param=False, eval=False, eval
     elif(dataset=='tless'):
         bop_dataset_dir = os.path.join(bop_dir,"tless")
         test_dir = bop_dataset_dir+"/test_primesense"
-        train_dir = bop_dataset_dir+"/train_primesense"
+        train_dir = bop_dataset_dir+"/test_primesense"
         if not(train) and not(eval_model):
             model_dir = bop_dataset_dir+"/models_reconst" #use this only for vis
         elif eval_model:

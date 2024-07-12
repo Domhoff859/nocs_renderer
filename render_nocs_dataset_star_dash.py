@@ -260,8 +260,14 @@ if __name__ == "__main__":
 
     # Camera intrinsics
     for idx, obj in tqdm(enumerate(objs), total=len(objs), desc="Processing Objects"):
-        mesh_path = shapenet_dir + "/" + obj_id + "/" + obj + "/model.obj"
-        mesh = trimesh.load(mesh_path, force='mesh')
+        
+        mesh_path = shapenet_dir + "/" + obj_id + "/" + obj + "/"
+        # Get all files in the directory
+        files = os.listdir(mesh_path)
+        # Get the file with the .obj extension
+        file = [file for file in files if file.endswith(".obj")][0]
+        model_path = mesh_path + file
+        mesh = trimesh.load(model_path, force='mesh')
         mesh = scale_mesh(mesh)
 
         # Convert mesh to pyrender format
