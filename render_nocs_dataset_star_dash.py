@@ -359,14 +359,14 @@ if __name__ == "__main__":
             
             # Normalize the output
             valid_star = valid_star[0, :, : ,:]
-            if(len(star_dash_model_info[str(obj)]['symmetries_discrete'])==0 and not star_dash_model_info[str(obj)]['symmetries_continuous']):
+            if(len(star_dash_model_info['symmetries_discrete'])==0 and not star_dash_model_info['symmetries_continuous']):
                 valid_star = valid_star + 127.5
             else:
                 valid_star = valid_star / np.sqrt(2) / 2 + 127.5
             valid_star = np.array(valid_star, dtype=np.uint8)
             
             valid_dash = valid_dash[0, :, :, :]
-            if(len(star_dash_model_info[str(obj)]['symmetries_discrete'])==0 and not star_dash_model_info[str(obj)]['symmetries_continuous']):
+            if(len(star_dash_model_info['symmetries_discrete'])==0 and not star_dash_model_info['symmetries_continuous']):
                 valid_dash = valid_dash + 127.5
             else:
                 valid_dash = valid_dash / np.sqrt(2) / 2 + 127.5 
