@@ -4,6 +4,7 @@
 #  https://github.com/mmatl/pyrender/blob/master/examples/example.py
 
 import numpy as np
+import trimesh.creation
 import pyrender_local.pyrender as pyrender
 import trimesh
 import os
@@ -228,11 +229,12 @@ if __name__ == "__main__":
     
     crop_size = 128
     cam_distance_factor = 10
+    experiment = True
 
     # Create output directory structure
     os.makedirs(output_dir, exist_ok=True)
 
-    objs = sorted(os.listdir(shapenet_dir + "/" + obj_id))
+    objs = sorted(os.listdir(shapenet_dir + "/" + str(obj_id)))
     output_dir = output_dir + "/" + obj_id
     os.makedirs(output_dir, exist_ok=True)
 
@@ -269,7 +271,15 @@ if __name__ == "__main__":
         model_path = mesh_path + file
         mesh = trimesh.load(model_path, force='mesh')
         mesh = scale_mesh(mesh)
+        if experiment:
+            mesh.apply_transform(trimesh.transformations.rotation_matrix(np.radians(90), [0, 1, 0.5]))
+        target_center = np.array([0, 0, 0])
+        current_center = np.mean(mesh.vertices, axis=0)
+        center_translation = target_center - current_center
 
+        # Apply the translation to move the center of the mesh
+        mesh.apply_translation(center_translation)
+        
         # Convert mesh to pyrender format
         mesh_rgb_pyrender = pyrender.Mesh.from_trimesh(mesh)
 
@@ -285,7 +295,10 @@ if __name__ == "__main__":
 
         spot_light_nodes = [scene.add(spot_light, pose=np.eye(4)) for spot_light in spot_lights]
 
-        points = trimesh.creation.icosphere(subdivisions=2, radius=np.max(mesh.bounding_box.extents) * cam_distance_factor).vertices
+        if experiment:
+            points = trimesh.creation.cylinder(radius=np.max(mesh.bounding_box.extents) * cam_distance_factor, height=0, sections=360).apply_transform(trimesh.transformations.rotation_matrix(np.radians(90), [1,0,0])).vertices
+        else:
+            points = trimesh.creation.icosphere(subdivisions=2, radius=np.max(mesh.bounding_box.extents) * cam_distance_factor).vertices
         camera_poses = calc_cam_poses(points)
 
         for i, camera_pose in enumerate(camera_poses):
