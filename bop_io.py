@@ -205,7 +205,7 @@ def get_dataset(bop_dir, dataset, train=True, incl_param=False, eval=False, eval
 
                         if(dataset=="itodd" and not(train)):
                             rgb_fn = os.path.join(current_dir+"/gray", "{:06d}.tif".format(im_id))
-                        elif(dataset=="lmo"):
+                        elif(dataset=="lmo" or 'train_pbr' in train_dir):
                             rgb_fn = os.path.join(current_dir+"/rgb", "{:06d}.jpg".format(im_id))
                         else:
                             rgb_fn = os.path.join(current_dir+"/rgb", "{:06d}.png".format(im_id))

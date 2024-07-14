@@ -347,7 +347,8 @@ if __name__ == "__main__":
                     visibility_percentage_bbox = 0.0
 
                 # print("Visibility percentage within bounding box: ", visibility_percentage_bbox)
-                
+                if bbox_gt[3] - bbox_gt[1] == 0 or bbox_gt[2] - bbox_gt[0] == 0:
+                    continue
                 rgb_data = crop_and_resize(img, bbox_gt)
                 xyz_data = crop_and_resize(img_r, bbox_gt)
                 
